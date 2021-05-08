@@ -1,0 +1,103 @@
+---
+version: 2.1
+
+executors:
+  go-build:
+    docker:
+      - image: quay.io/getpantheon/go-build:latest
+        auth:
+          username: $QUAY_USER
+          password: $QUAY_PASSWD
+  deploy-toolbox:
+    docker:
+      - image: quay.io/getpantheon/deploy-toolbox:latest
+        auth:
+          username: $QUAY_USER
+          password: $QUAY_PASSWD
+
+commands:
+  # commands to persist and load CIRCLE_BUILD_NUM across jobs:
+  save-build-num:
+    steps:
+      - run: echo "export CIRCLE_BUILD_NUM=$CIRCLE_BUILD_NUM" > circle-build-num
+  load-build-num:
+    steps:
+      - run: cat circle-build-num >> $BASH_ENV
+
+  # go.mod caching:
+  save-go-mod-cache:
+    steps:
+      - save_cache:
+          key: v4-dependencies-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod
+            - /home/circleci/go/pkg/mod
+  restore-go-mod-cache:
+    steps:
+      - restore_cache:
+          keys:
+            - v4-dependencies-{{ checksum "go.sum" }}
+
+  # save/restore worksapce (git checkout + artifacts) across jobs:
+  save-workspace:
+    steps:
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./
+  restore-workspace:
+    steps:
+      - attach_workspace:
+          at: .
+
+jobs:
+  # Tests the code and lints it
+  test:
+    executor: go-build
+    steps:
+      - checkout
+      - restore-go-mod-cache
+      - save-build-num
+      - run: make build
+      - run: make test
+      - save-go-mod-cache
+      - save-workspace
+
+  # Builds the container image and pushes it to the registry.
+  push:
+    executor: go-build
+    steps:
+      - setup_remote_docker
+      - restore-workspace
+      - load-build-num
+      - run: make build-docker
+      - run: make push
+      - save-workspace
+
+  # Deploys the latest build to Kube
+  deploy:
+    executor: deploy-toolbox
+    steps:
+      - restore-workspace
+      - load-build-num
+      - run: UPDATE_GCLOUD=false make deps-circle-kube      
+      - run: make deploy check-deployment-status
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - test
+      - push:
+          requires:
+            - test
+      - deploy:
+          requires:
+            - test
+            - push
+          filters:
+            branches:
+              only:
+                # NOTE: don't deploy from the template repo. Implementors should change the next line to match their main branch name that they intend to deploy from
+                - main-REMOVE_THIS
+                - release-test

@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-demo-service
+  labels:
+    app: go-demo-service
+  annotations:
+    kube-cert-checker.pantheon.io/warning: 35h
+    kube-cert-checker.pantheon.io/critical: 24h
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 443
+      targetPort: 7443
+      protocol: TCP
+  selector:
+    app: go-demo-service
+    state: serving

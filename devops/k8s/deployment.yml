@@ -1,0 +1,74 @@
+# WARNING!
+# If you're modifying this template, consider whether the changes
+# also need to be replicated in the deployment template.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-demo-service
+
+spec:
+  replicas: __REPLICAS__
+  selector:
+    matchLabels:
+      app: go-demo-service
+      state: serving
+
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+
+  template:
+    metadata:
+      labels:
+        app: go-demo-service
+        build: "__BUILD__"
+        state: serving
+      annotations:
+        vault.hashicorp.com/agent-inject: 'true'
+        # these two are needed to configure the agent to use our CA certs when
+        # communicating with vault:
+        vault.hashicorp.com/tls-secret: pantheon-ca-cert
+        vault.hashicorp.com/ca-cert: "/vault/tls/ca.crt"
+
+        vault.hashicorp.com/role: go-demo-service
+        vault.hashicorp.com/agent-run-as-user: "10000"
+        vault.hashicorp.com/agent-run-as-group: "10000"
+
+        # /vault/secrets/go-demo-service.pem
+        vault.hashicorp.com/agent-inject-secret-go-demo-service.pem: pki/issue/ou-go-demo-service
+        vault.hashicorp.com/agent-inject-template-go-demo-service.pem: |
+          {{- with secret "pki/issue/ou-go-demo-service" "common_name=go-demo-service" "alt_names=go-demo-service.svc.pantheon.io,go-demo-service,localhost,127.0.0.1" "ttl=720h" }}
+          {{ .Data.private_key }}
+          {{ .Data.certificate }}
+          {{ .Data.issuing_ca }}
+          {{ end }}
+    spec:
+      serviceAccountName: go-demo-service
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 20
+      volumes:
+        - name: pantheon-ca-cert
+          configMap:
+            name: pantheon-ca-cert
+        - name: go-demo-service-config
+          configMap:
+            name: go-demo-service-config
+      containers:
+        - image: __IMAGE__
+          name: go-demo-service
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 0.2
+              memory: 50Mi
+            limits:
+              cpu: 1
+              memory: 100Mi
+          volumeMounts:
+            - name: pantheon-ca-cert
+              mountPath: /configmaps/pantheon-ca-cert
+            - name: go-demo-service-config
+              mountPath: /configmaps/config

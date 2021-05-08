@@ -1,0 +1,14 @@
+ca-cert: test-fixtures/certs/ca.crt
+server-cert: test-fixtures/certs/server.crt
+server-key: test-fixtures/certs/server.key
+
+bind-address: localhost
+bind-port: 7443
+
+worker-sleep: 60s
+
+bind-address-healthz: localhost
+
+# Metrics
+graphite-host: ""
+metric-flush-interval: 1s

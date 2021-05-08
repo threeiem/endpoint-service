@@ -1,0 +1,16 @@
+ca-cert: /configmaps/pantheon-ca-cert/helios_and_internal.crt
+server-cert: /vault/secrets/go-demo-service.pem
+server-key: /vault/secrets/go-demo-service.pem
+
+bind-address: ""
+bind-port: 7443
+
+worker-sleep: 60s
+
+bind-address-healthz: localhost
+
+# Metrics
+graphite-host: ""
+metric-flush-interval: 1s
+
+log-fmt-json: true

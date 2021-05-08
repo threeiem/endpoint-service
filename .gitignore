@@ -1,0 +1,32 @@
+# This app's binary and the config file
+/go-demo-service
+/go-demo-service.yml
+
+*.crt
+*.csr
+*.pem
+*.key
+*.p12
+
+!test-fixtures/certs/*.crt
+!test-fixtures/certs/*.csr
+!test-fixtures/certs/*.pem
+!test-fixtures/certs/*.key
+!test-fixtures/certs/*.p12
+
+# Copy from onebox; do not commit
+test-fixtures/certs/api.onebox.pem
+
+devops/k8s/secrets/*
+
+vendor/**
+!vendor/manifest
+
+.DS_Store
+.vscode/
+robo.yml
+
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
